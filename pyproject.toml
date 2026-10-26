@@ -1,0 +1,17 @@
+[project]
+name = "facis"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "torch==2.13.0",
+    "torchvision==0.28.0",
+    "mmcv-full==1.7.2",
+    "timm==0.4.12",
+    "py-blueprint==0.0.1.post3",
+    "mmsegmentation==0.30.0",
+    "ftfy==6.0.1",
+    "einops==0.3.2",
+]
+
+[tool.uv]
+extra-build-dependencies = { mmcv-full = ["setuptools<81", "torch==2.13.0"] }

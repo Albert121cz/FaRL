@@ -193,7 +193,7 @@ struct p2i_max_op {
     auto N = npoints * channels;
 
     AT_DISPATCH_FLOATING_TYPES(
-        points.type(), "p2i_max_op::forward", ([&] {
+        points.scalar_type(), "p2i_max_op::forward", ([&] {
           kernel<XPU>::launch(
               p2i_max_forward_kernel<scalar_t>(), N, points.data<scalar_t>(),
               point_features.data<scalar_t>(), batch_inds.data<int32_t>(),
@@ -234,7 +234,7 @@ struct p2i_max_op {
 
     auto N = batch * channels * out_h * out_w;
     AT_DISPATCH_FLOATING_TYPES(
-        points.type(), "p2i_max_op::backward", ([&] {
+        points.scalar_type(), "p2i_max_op::backward", ([&] {
           kernel<XPU>::launch(
               p2i_max_backward_kernel<scalar_t>(), N, out_grad.data<scalar_t>(),
               out_point_ids.data<int32_t>(), points.data<scalar_t>(),

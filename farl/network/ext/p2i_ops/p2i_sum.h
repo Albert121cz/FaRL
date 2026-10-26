@@ -153,7 +153,7 @@ struct p2i_sum_op {
     auto N = npoints * channels;
 
     AT_DISPATCH_FLOATING_TYPES(
-        points.type(), "p2i_sum_op::forward", ([&] {
+        points.scalar_type(), "p2i_sum_op::forward", ([&] {
           kernel<XPU>::launch(
               p2i_sum_forward_kernel<scalar_t>(), N, points.data<scalar_t>(),
               point_features.data<scalar_t>(), batch_inds.data<int32_t>(),
@@ -191,7 +191,7 @@ struct p2i_sum_op {
 
     auto N = npoints * channels;
     AT_DISPATCH_FLOATING_TYPES(
-        points.type(), "p2i_sum_op::backward", ([&] {
+        points.scalar_type(), "p2i_sum_op::backward", ([&] {
           kernel<XPU>::launch(
               p2i_sum_backward_kernel<scalar_t>(), N, out_grad.data<scalar_t>(),
               points.data<scalar_t>(), point_features.data<scalar_t>(),

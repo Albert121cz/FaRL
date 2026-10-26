@@ -1,3 +1,7 @@
+> # **Fork additions**
+> - **Updated packages** - The project is now compatible with torch 2.13 instead of 1.7.
+> - **`pyproject.toml`** - `uv sync` can be used to prepare the virtual environment without any additional setup.
+
 # *FaRL* for *Fa*cial *R*epresentation *L*earning
 	
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/general-facial-representation-learning-in-a/face-alignment-on-300w)](https://paperswithcode.com/sota/face-alignment-on-300w?p=general-facial-representation-learning-in-a)
