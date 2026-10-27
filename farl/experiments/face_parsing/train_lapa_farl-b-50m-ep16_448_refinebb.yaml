@@ -3,7 +3,7 @@
 
 package: farl.experiments.face_parsing
 
-class: blueprint.ml.DistributedGPURun
+class: farl.experiments.distributed.CustomDistributedGPURun
 local_run:
   $PARSE('./trainers/lapa_farl.yaml', 
     cfg_file=FILE,
