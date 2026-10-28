@@ -6,7 +6,7 @@
 #  batch_size, 
 #  model_type, model_path, 
 #  input_resolution, head_channel,
-#  optimizer_name, [lr_factor], enable_amp
+#  optimizer_name, [lr_factor], [freeze_visual], enable_amp
 
 package: farl.experiments.face_alignment
 
@@ -60,7 +60,8 @@ networks:
       model_path=ARGS['model_path'],
       input_resolution=ARGS['input_resolution'], 
       head_channel=ARGS.get('head_channel', 768),
-      num_landmarks=68)
+      num_landmarks=68,
+      freeze_visual=ARGS.get('freeze_visual', False))
   main_ema:
     class: blueprint.ml.EMAConfig
     network_name: main

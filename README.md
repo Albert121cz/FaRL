@@ -4,6 +4,7 @@
 > - **Distributed port selection** - An alternative blueprint GPU runner `farl.experiments.distributed.CustomDistributedGPURun` has been added with support for:
 >   - `MASTER_PORT` environment variable can be used to select torch distributed port.
 >   - Automatic port selection for running with single/multiple GPUs on a single node.
+> - **Improved performance when frozen** - Set `freeze_visual=True` in the run yaml to disable gradients for the FaRL visual encoder while keeping the FPN trainable.
 
 # *FaRL* for *Fa*cial *R*epresentation *L*earning
 	
@@ -136,6 +137,7 @@ local_run:
     input_resolution=448, # The input image resolution, e.g 224, 448. 
     head_channel=768, # The channels of the head.
     optimizer_name='refine_backbone', # The optimization method. Should be 'refine_backbone' or 'freeze_backbone'.
+    freeze_visual=False, # Set to True to disable gradients for the FaRL visual encoder.
     enable_amp=False) # Whether to enable float16 in downstream training.
 ```
 

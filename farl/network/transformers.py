@@ -65,6 +65,8 @@ class FaRLVisualFeatures(nn.Module):
     Args:
         image (torch.Tensor): Float32 tensor with shape [b, 3, h, w], 
             normalized to [0, 1].
+        freeze_visual (bool): Disable gradients for the FaRL visual encoder.
+            FPN layers remain trainable.
 
     Returns:
         List[torch.Tensor]: A list of features.
@@ -77,7 +79,8 @@ class FaRLVisualFeatures(nn.Module):
     def __init__(self, model_type: str,
                  model_path: str, output_indices: Optional[List[int]] = None,
                  forced_input_resolution: Optional[int] = None,
-                 apply_fpn: bool = True, _ctx: Optional[Context] = None):
+                 apply_fpn: bool = True, freeze_visual: bool = False,
+                 _ctx: Optional[Context] = None):
         super().__init__()
 
         model_path = deal_with_remote_file(
@@ -94,6 +97,10 @@ class FaRLVisualFeatures(nn.Module):
                 _resize_pe(self.visual.positional_embedding,
                            forced_input_resolution//vision_patch_size))
             self.input_resolution = forced_input_resolution
+
+        if freeze_visual:
+            for parameter in self.visual.parameters():
+                parameter.requires_grad_(False)
 
         self.output_channels = self.visual.transformer.width
 
