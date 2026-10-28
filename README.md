@@ -3,7 +3,7 @@
 > - **`pyproject.toml`** - `uv sync` can be used to prepare the virtual environment without any additional setup.
 > - **Distributed port selection** - An alternative blueprint GPU runner `farl.experiments.distributed.CustomDistributedGPURun` has been added with support for:
 >   - `MASTER_PORT` environment variable can be used to select torch distributed port.
->   - `DISABLE_DISTRIBUTED=1` disabled torch distributed as a whole.
+>   - Automatic port selection for running with single/multiple GPUs on a single node.
 
 # *FaRL* for *Fa*cial *R*epresentation *L*earning
 	
@@ -85,8 +85,10 @@ python -m blueprint.run \
 ```
 
 The downstream training configurations use a local wrapper around Blueprint's
-distributed runner. Set `MASTER_ADDR` and `MASTER_PORT` before launching a
-run when multiple runs share a machine, for example:
+distributed runner. For single-node runs, `MASTER_PORT` can be left unset;
+the runner selects an available port and retries with another port if a race
+claims it before initialization. You can still set it explicitly when a
+specific port is required:
 
 ```
 MASTER_ADDR=127.0.0.1 MASTER_PORT=12345 python -m blueprint.run \
@@ -94,20 +96,12 @@ MASTER_ADDR=127.0.0.1 MASTER_PORT=12345 python -m blueprint.run \
   --exp_name farl --blob_root ./blob
 ```
 
-For single-node distributed runs, leaving `MASTER_PORT` unset, or setting it
-to `0`, asks the operating system to choose an available port before the
-workers start. An explicit `MASTER_PORT` is preserved. Multi-node runs still
-require both `MASTER_ADDR` and `MASTER_PORT`.
-
-If the machine has exactly one GPU, `DISABLE_DISTRIBUTED=1` skips the process
-group entirely and runs the task directly. This avoids rendezvous ports
-altogether:
-
-```
-DISABLE_DISTRIBUTED=1 python -m blueprint.run \
-  farl/experiments/face_alignment/train_wflw_farl-b-ep16_448_refinebb.yaml \
-  --exp_name farl --blob_root ./blob
-```
+Leaving `MASTER_PORT` unset, or setting it to `0`, asks the operating system
+to choose an available port before the workers start. If another process
+claims that port before initialization, the runner selects another port and
+retries, up to 10 attempts. An explicit `MASTER_PORT` is preserved and is not
+retried. Multi-node runs still require both `MASTER_ADDR` and `MASTER_PORT`
+with the same values available to every node.
 
 The repo has included some config files under `./farl/experiments/` that perform finetuning for face parsing and face alignment.
 For example, if you would like to launch a face parsing training on LaPa by finetuning our `FaRL-Base-Patch16-LAIONFace20M-ep16` pre-training, simply run with:
