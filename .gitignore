@@ -130,3 +130,6 @@ dmypy.json
 _debug/
 blob/
 blob
+
+# Directory for configs of different runs
+configs

@@ -5,6 +5,7 @@
 >   - `MASTER_PORT` environment variable can be used to select torch distributed port.
 >   - Automatic port selection for running with single/multiple GPUs on a single node.
 > - **Improved performance when frozen** - Set `freeze_visual=True` in the run yaml to disable gradients for the FaRL visual encoder while keeping the FPN trainable.
+> - **YAML generation** - `generate-launch-yaml` can be used to generate run YAML configuration files.
 
 # *FaRL* for *Fa*cial *R*epresentation *L*earning
 	
