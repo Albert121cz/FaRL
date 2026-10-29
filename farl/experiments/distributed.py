@@ -39,6 +39,8 @@ def _single_thread_run(
     else:
         raise RuntimeError("Failed to create the init_method")
 
+    torch.cuda.set_device(gpu_rank)
+
     try:
         dist.init_process_group(
             backend="nccl", init_method=init_method, rank=rank, world_size=world_size
@@ -49,7 +51,6 @@ def _single_thread_run(
         raise
     print(f"DistributedGPURun: init_process_group: {rank}/{world_size}")
 
-    torch.cuda.set_device(gpu_rank)
     seed = distributed_run.seed0 + rank
     torch.manual_seed(seed)
     random.seed(seed + 100)
