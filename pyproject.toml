@@ -17,5 +17,10 @@ dependencies = [
 generate-launch-yaml = "scripts.generate_launch_yaml:main"
 
 [tool.uv]
-extra-build-dependencies = { mmcv-full = ["setuptools<81", "torch==2.13.0"] }
+extra-build-dependencies = { mmcv-full = [
+    "setuptools<81",
+    "torch==2.13.0",
+], ftfy = [
+    "setuptools<81",
+] }
 extra-build-variables = { mmcv-full = { FORCE_CUDA = "1", TORCH_CUDA_ARCH_LIST = "7.0;8.0;9.0" } }
