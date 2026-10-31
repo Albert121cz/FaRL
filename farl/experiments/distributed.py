@@ -86,6 +86,12 @@ class CustomDistributedGPURun(DistributedGPURun):
                     os.environ["MASTER_PORT"] = str(
                         selected_socket.getsockname()[1]
                     )
+                    print(
+                        f"CustomDistributedGPURun: using automatically selected "
+                        f"MASTER_PORT={os.environ['MASTER_PORT']} "
+                        f"(attempt {attempt + 1}/{attempts})",
+                        flush=True,
+                    )
                 finally:
                     selected_socket.close()
 
