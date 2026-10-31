@@ -1,4 +1,5 @@
 > # **Fork additions**
+> **⚠️ Random CUDA errors encountered when using more than 1 GPU. ⚠️**
 > - **Updated packages** - The project is now compatible with torch 2.13 instead of 1.7.
 > - **`pyproject.toml`** - `uv sync` can be used to prepare the virtual environment without any additional setup.
 > - **Distributed port selection** - An alternative blueprint GPU runner `farl.experiments.distributed.CustomDistributedGPURun` has been added with support for:

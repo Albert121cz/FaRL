@@ -20,6 +20,7 @@ def generate_launch_yaml(
     num_gpus: int,
     mode: str,
     checkpoint_path: str,
+    train_data_ratio: float | None = None,
 ) -> str:
     if dataset not in DATASETS:
         choices = ", ".join(sorted(DATASETS))
@@ -34,6 +35,8 @@ def generate_launch_yaml(
         raise ValueError("mode must be either 'finetune' or 'frozen'")
     if not checkpoint_path:
         raise ValueError("checkpoint path must not be empty")
+    if train_data_ratio is not None and not 0 < train_data_ratio <= 1:
+        raise ValueError("train data ratio must be greater than 0 and at most 1")
 
     package, trainer = DATASETS[dataset]
     optimizer = "refine_backbone" if mode == "finetune" else "freeze_backbone"
@@ -46,16 +49,42 @@ class: farl.experiments.distributed.CustomDistributedGPURun
 local_run:
   $PARSE('./trainers/{trainer}',
     cfg_file=FILE,
-    train_data_ratio=None,
+    train_data_ratio={train_data_ratio!r},
     batch_size={TOTAL_BATCH_SIZE // num_gpus},
     model_type='base',
-    model_path={repr(checkpoint_path)},
+    model_path={checkpoint_path!r},
     input_resolution={input_resolution},
     head_channel=768,
-    optimizer_name={repr(optimizer)},
+    optimizer_name={optimizer!r},
     freeze_visual={freeze_visual},
     enable_amp=False)
 """
+
+
+def save_launch_yaml(
+    output_path: Path,
+    dataset: str,
+    input_resolution: int,
+    num_gpus: int,
+    mode: str,
+    checkpoint_path: str,
+    train_data_ratio: float | None = None,
+) -> Path:
+    if output_path.exists():
+        raise FileExistsError(f"refusing to overwrite existing file: {output_path}")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        generate_launch_yaml(
+            dataset=dataset,
+            input_resolution=input_resolution,
+            num_gpus=num_gpus,
+            mode=mode,
+            checkpoint_path=checkpoint_path,
+            train_data_ratio=train_data_ratio,
+        ),
+        encoding="utf-8",
+    )
+    return output_path
 
 
 def _parse_args() -> argparse.Namespace:
@@ -67,6 +96,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--num-gpus", required=True, type=int)
     parser.add_argument("--mode", required=True, choices=("finetune", "frozen"))
     parser.add_argument("--checkpoint-path", required=True)
+    parser.add_argument("--train-data-ratio", type=float, default=None)
     parser.add_argument(
         "--output-path",
         required=True,
@@ -78,18 +108,15 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
-    content = generate_launch_yaml(
+    output_path = save_launch_yaml(
+        output_path=args.output_path,
         dataset=args.dataset,
         input_resolution=args.input_resolution,
         num_gpus=args.num_gpus,
         mode=args.mode,
         checkpoint_path=args.checkpoint_path,
+        train_data_ratio=args.train_data_ratio,
     )
-    output_path = args.output_path
-    if output_path.exists():
-        raise FileExistsError(f"refusing to overwrite existing file: {output_path}")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(content, encoding="utf-8")
     print(output_path)
 
 

@@ -6,3 +6,4 @@ py-blueprint==0.0.1.post3
 mmsegmentation==0.30.0
 ftfy==6.0.1
 einops==0.3.2
+pyyaml==6.0.3

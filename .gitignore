@@ -131,5 +131,8 @@ _debug/
 blob/
 blob
 
-# Directory for configs of different runs
 configs
+
+scripts/train.sbatch
+
+uv.lock

@@ -1,7 +1,7 @@
 [project]
-name = "facis"
+name = "farl"
 version = "0.1.0"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "torch==2.13.0",
     "torchvision==0.28.0",
@@ -11,10 +11,12 @@ dependencies = [
     "mmsegmentation==0.30.0",
     "ftfy==6.0.1",
     "einops==0.3.2",
+    "pyyaml==6.0.3",
 ]
 
 [project.scripts]
 generate-launch-yaml = "scripts.generate_launch_yaml:main"
+launch-farl-experiments = "scripts.launch_farl_experiments:main"
 
 [tool.uv]
 extra-build-dependencies = { mmcv-full = [
