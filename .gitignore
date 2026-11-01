@@ -133,6 +133,4 @@ blob
 
 configs
 
-farl/scripts/train.sbatch
-
 uv.lock

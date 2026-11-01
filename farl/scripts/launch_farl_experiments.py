@@ -40,6 +40,12 @@ def _parse_args(run_names: list[str], resource_config: Path) -> argparse.Namespa
         "--configs-dir", type=Path, default=Path(__file__).parent.parent / "configs"
     )
     parser.add_argument(
+        "--blob-root",
+        type=Path,
+        default=Path("./blob"),
+        help="blob directory containing outputs, states, and logs",
+    )
+    parser.add_argument(
         "--resource-config",
         type=Path,
         default=resource_config,
@@ -124,10 +130,20 @@ def _validate_resource_spec(resource_spec: ResourceSpec) -> None:
 
 
 def _sbatch_options(
-    resource_spec: ResourceSpec, dependency_job_ids: list[str] | None = None
+    resource_spec: ResourceSpec,
+    job_name: str,
+    blob_root: Path,
+    dependency_job_ids: list[str] | None = None,
 ) -> list[str]:
+    log_path = blob_root / "logs" / f"{job_name}.log"
     options = [
         "--parsable",
+        "--job-name",
+        job_name,
+        "--output",
+        str(log_path),
+        "--error",
+        str(log_path),
         "--partition",
         resource_spec.queue,
         "--time",
@@ -185,6 +201,7 @@ def main() -> None:
             f"refusing to reuse existing experiment directory: {experiment_dir}"
         )
     experiment_dir.mkdir(parents=True)
+    (args.blob_root / "logs").mkdir(parents=True, exist_ok=True)
 
     priority_groups = _priority_groups(args.runs, selected_specs)
     previous_priority_job_ids: list[str] = []
@@ -210,7 +227,12 @@ def main() -> None:
             )
             command = [
                 "sbatch",
-                *_sbatch_options(resource_spec, dependency_job_ids),
+                *_sbatch_options(
+                    resource_spec,
+                    job_name=f"{args.experiment_name}_{run_name}",
+                    blob_root=args.blob_root,
+                    dependency_job_ids=dependency_job_ids,
+                ),
                 str(args.sbatch_script),
                 str(config_path),
                 f"{args.experiment_name}_{run_name}",
