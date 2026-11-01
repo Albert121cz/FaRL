@@ -50,11 +50,13 @@ finetune_celebm:
   dataset: celebm
   queue: h200long
   duration: "34:00:00" # ~27.5h
+  launch_priority: 1
 finetune_lapa:
   run_type: finetune
   dataset: lapa
   queue: h200long
   duration: "30:00:00" # ~23.75h
+  launch_priority: 1
 
 finetune448_aflw19:
   run_type: finetune
@@ -62,6 +64,7 @@ finetune448_aflw19:
   queue: h200long
   duration: "35:00:00" # ~28.75h
   input_resolution: 448
+  launch_priority: 1
 finetune448_ibug300w:
   run_type: finetune
   dataset: ibug300w
@@ -80,12 +83,14 @@ finetune448_celebm:
   queue: h200long
   duration: "72:00:00" # ~67.5h
   input_resolution: 448
+  launch_priority: 1
 finetune448_lapa:
   run_type: finetune
   dataset: lapa
   queue: h200long
   duration: "60:00:00" # ~53.75h
   input_resolution: 448
+  launch_priority: 1
 
 frozen_aflw19_10pct:
   run_type: frozen

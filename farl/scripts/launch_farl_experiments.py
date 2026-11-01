@@ -27,6 +27,7 @@ class ResourceSpec:
     venv: str = ".venv"
     train_data_ratio: float | None = None
     input_resolution: int = 224
+    launch_priority: int = 0
 
 
 def _parse_args(run_names: list[str], resource_config: Path) -> argparse.Namespace:
@@ -60,6 +61,11 @@ def _parse_args(run_names: list[str], resource_config: Path) -> argparse.Namespa
         "--dry-run",
         action="store_true",
         help="generate configs without submitting Slurm jobs",
+    )
+    parser.add_argument(
+        "--ignore-priorities",
+        action="store_true",
+        help="submit jobs without Slurm priority dependencies",
     )
     return parser.parse_args()
 
@@ -117,8 +123,11 @@ def _validate_resource_spec(resource_spec: ResourceSpec) -> None:
         )
 
 
-def _sbatch_options(resource_spec: ResourceSpec) -> list[str]:
-    return [
+def _sbatch_options(
+    resource_spec: ResourceSpec, dependency_job_ids: list[str] | None = None
+) -> list[str]:
+    options = [
+        "--parsable",
         "--partition",
         resource_spec.queue,
         "--time",
@@ -130,6 +139,28 @@ def _sbatch_options(resource_spec: ResourceSpec) -> list[str]:
         "--mem",
         resource_spec.memory,
     ]
+    if dependency_job_ids:
+        options.extend(["--dependency", f"after:{':'.join(dependency_job_ids)}"])
+    return options
+
+
+def _priority_groups(
+    run_names: list[str], resource_specs: dict[str, ResourceSpec]
+) -> dict[int, list[str]]:
+    priority_groups: dict[int, list[str]] = {}
+    for run_name in run_names:
+        priority = resource_specs[run_name].launch_priority
+        priority_groups.setdefault(priority, []).append(run_name)
+    return priority_groups
+
+
+def _job_id_from_submission(result: subprocess.CompletedProcess[str]) -> str:
+    job_id = result.stdout.strip().split(";", maxsplit=1)[0]
+    if not job_id:
+        raise RuntimeError(
+            f"sbatch did not return a job ID; stderr: {result.stderr.strip()}"
+        )
+    return job_id
 
 
 def main() -> None:
@@ -155,32 +186,46 @@ def main() -> None:
         )
     experiment_dir.mkdir(parents=True)
 
-    for run_name in args.runs:
-        resource_spec = selected_specs[run_name]
-        config_path = experiment_dir / f"{run_name}.yaml"
-        save_launch_yaml(
-            output_path=config_path,
-            dataset=resource_spec.dataset,
-            input_resolution=resource_spec.input_resolution,
-            num_gpus=resource_spec.num_gpus,
-            mode="frozen" if resource_spec.run_type == "frozen" else "finetune",
-            checkpoint_path=args.checkpoint_path,
-            train_data_ratio=resource_spec.train_data_ratio,
-        )
+    priority_groups = _priority_groups(args.runs, selected_specs)
+    previous_priority_job_ids: list[str] = []
+    for priority in sorted(priority_groups, reverse=True):
+        current_priority_job_ids = []
+        for run_name in priority_groups[priority]:
+            resource_spec = selected_specs[run_name]
+            config_path = experiment_dir / f"{run_name}.yaml"
+            save_launch_yaml(
+                output_path=config_path,
+                dataset=resource_spec.dataset,
+                input_resolution=resource_spec.input_resolution,
+                num_gpus=resource_spec.num_gpus,
+                mode="frozen" if resource_spec.run_type == "frozen" else "finetune",
+                checkpoint_path=str(Path(args.checkpoint_path).resolve()),
+                train_data_ratio=resource_spec.train_data_ratio,
+            )
 
-        command = [
-            "sbatch",
-            *_sbatch_options(resource_spec),
-            str(args.sbatch_script),
-            str(config_path),
-            f"{args.experiment_name}_{run_name}",
-            resource_spec.venv,
-        ]
-        if args.dry_run:
-            print(" ".join(command))
-        else:
-            subprocess.run(command, check=True)
-            print(f"submitted {run_name}: {config_path}")
+            dependency_job_ids = (
+                None
+                if args.ignore_priorities
+                else previous_priority_job_ids or None
+            )
+            command = [
+                "sbatch",
+                *_sbatch_options(resource_spec, dependency_job_ids),
+                str(args.sbatch_script),
+                str(config_path),
+                f"{args.experiment_name}_{run_name}",
+                resource_spec.venv,
+            ]
+            if args.dry_run:
+                print(" ".join(command))
+            else:
+                result = subprocess.run(
+                    command, check=True, capture_output=True, text=True
+                )
+                job_id = _job_id_from_submission(result)
+                current_priority_job_ids.append(job_id)
+                print(f"submitted {run_name} ({job_id}): {config_path}")
+        previous_priority_job_ids = current_priority_job_ids
 
 
 if __name__ == "__main__":
