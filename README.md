@@ -7,6 +7,7 @@
 >   - Automatic port selection for running with single/multiple GPUs on a single node.
 > - **Improved performance when frozen** - Set `freeze_visual=True` in the run yaml to disable gradients for the FaRL visual encoder while keeping the FPN trainable.
 > - **YAML generation** - `generate-launch-yaml` can be used to generate run YAML configuration files.
+> - **Automated launching of all experiments** - `launch-farl-experiments` can be used to run all experiments (on a system with Slurm) from the paper regarding facial parsing/alignment with a single command per pretrained checkpoint. Note: An sbatch script needs to be provided that accepts path to the training config, experiment name and a path to the venv to use.
 
 # *FaRL* for *Fa*cial *R*epresentation *L*earning
 	

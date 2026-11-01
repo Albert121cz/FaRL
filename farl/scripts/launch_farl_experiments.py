@@ -8,7 +8,7 @@ from typing import Final
 
 import yaml
 
-from scripts.generate_launch_yaml import save_launch_yaml
+from .generate_launch_yaml import save_launch_yaml
 
 DATASETS: Final = ("aflw19", "ibug300w", "wflw", "celebm", "lapa")
 RUN_TYPES: Final = ("frozen", "finetune")
