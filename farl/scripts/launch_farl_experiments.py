@@ -132,10 +132,10 @@ def _validate_resource_spec(resource_spec: ResourceSpec) -> None:
 def _sbatch_options(
     resource_spec: ResourceSpec,
     job_name: str,
-    blob_root: Path,
+    log_dir: Path,
     dependency_job_ids: list[str] | None = None,
 ) -> list[str]:
-    log_path = blob_root / "logs" / f"{job_name}.log"
+    log_path = log_dir / f"{job_name}.log"
     options = [
         "--parsable",
         "--job-name",
@@ -201,7 +201,9 @@ def main() -> None:
             f"refusing to reuse existing experiment directory: {experiment_dir}"
         )
     experiment_dir.mkdir(parents=True)
-    (args.blob_root / "logs").mkdir(parents=True, exist_ok=True)
+    log_dir = args.blob_root / "logs" / args.experiment_name
+    log_dir.mkdir(parents=True, exist_ok=True)
+    commands_text = ""
 
     priority_groups = _priority_groups(args.runs, selected_specs)
     previous_priority_job_ids: list[str] = []
@@ -230,16 +232,18 @@ def main() -> None:
                 *_sbatch_options(
                     resource_spec,
                     job_name=f"{args.experiment_name}_{run_name}",
-                    blob_root=args.blob_root,
+                    log_dir=log_dir,
                     dependency_job_ids=dependency_job_ids,
                 ),
                 str(args.sbatch_script),
                 str(config_path),
-                f"{args.experiment_name}_{run_name}",
+                args.experiment_name,
                 resource_spec.venv,
             ]
+            command_text = " ".join(command)
+            commands_text += f"{command_text}\n"
             if args.dry_run:
-                print(" ".join(command))
+                print(command_text)
             else:
                 result = subprocess.run(
                     command, check=True, capture_output=True, text=True
@@ -248,6 +252,9 @@ def main() -> None:
                 current_priority_job_ids.append(job_id)
                 print(f"submitted {run_name} ({job_id}): {config_path}")
         previous_priority_job_ids = current_priority_job_ids
+
+    if not args.dry_run:
+        (log_dir / "commands.txt").write_text(commands_text, encoding="utf-8")
 
 
 if __name__ == "__main__":
