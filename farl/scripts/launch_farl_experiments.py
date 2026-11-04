@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +37,16 @@ def _parse_args(run_names: list[str], resource_config: Path) -> argparse.Namespa
     )
     parser.add_argument("--experiment-name", required=True)
     parser.add_argument("--checkpoint-path", required=True)
+    parser.add_argument(
+        "--mail-user",
+        default=None,
+        help="send mail when a job fails and when all jobs have finished",
+    )
+    parser.add_argument(
+        "--notify-partition",
+        default="cpufast",
+        help="partition for the final notification job (default: %(default)s)",
+    )
     parser.add_argument(
         "--configs-dir", type=Path, default=Path(__file__).parent.parent / "configs"
     )
@@ -76,17 +87,25 @@ def _parse_args(run_names: list[str], resource_config: Path) -> argparse.Namespa
     return parser.parse_args()
 
 
-def _validate_args(args: argparse.Namespace) -> None:
+def _validate_args(args: argparse.Namespace) -> bool:
     if not args.experiment_name:
         raise ValueError("experiment name must not be empty")
     if not args.checkpoint_path:
         raise ValueError("checkpoint path must not be empty")
+    if not args.dry_run and not Path(args.checkpoint_path).is_file():
+        raise FileNotFoundError(f"checkpoint does not exist: {args.checkpoint_path}")
     if not args.sbatch_script.is_file():
         raise FileNotFoundError(f"sbatch script does not exist: {args.sbatch_script}")
     if not args.resource_config.is_file():
         raise FileNotFoundError(
             f"resource config does not exist: {args.resource_config}"
         )
+    if args.mail_user is None:
+        answer = input("Warning: no --mail-user was provided. Continue? [y/N] ")
+        if answer.strip().lower() not in {"y", "yes"}:
+            print("Cancelled.")
+            return False
+    return True
 
 
 def _load_resource_specs(path: Path) -> dict[str, ResourceSpec]:
@@ -133,6 +152,9 @@ def _sbatch_options(
     resource_spec: ResourceSpec,
     job_name: str,
     log_dir: Path,
+    repo_root: Path,
+    blob_root: Path,
+    mail_user: str | None,
     dependency_job_ids: list[str] | None = None,
 ) -> list[str]:
     log_path = log_dir / f"{job_name}.log"
@@ -144,6 +166,11 @@ def _sbatch_options(
         str(log_path),
         "--error",
         str(log_path),
+        "--export",
+        "ALL,"
+        f"FARL_REPO_ROOT={repo_root},"
+        f"FARL_VENV={resource_spec.venv},"
+        f"FARL_BLOB_ROOT={blob_root}",
         "--partition",
         resource_spec.queue,
         "--time",
@@ -155,6 +182,8 @@ def _sbatch_options(
         "--mem",
         resource_spec.memory,
     ]
+    if mail_user:
+        options.extend(["--mail-type", "FAIL,TIME_LIMIT", "--mail-user", mail_user])
     if dependency_job_ids:
         options.extend(["--dependency", f"after:{':'.join(dependency_job_ids)}"])
     return options
@@ -188,7 +217,8 @@ def main() -> None:
         resource_config_path = resource_config_args.resource_config
     resource_specs = _load_resource_specs(resource_config_path)
     args = _parse_args(list(resource_specs), resource_config_path)
-    _validate_args(args)
+    if not _validate_args(args):
+        return
     selected_specs = {}
     for run_name in args.runs:
         resource_spec = resource_specs[run_name]
@@ -203,7 +233,9 @@ def main() -> None:
     experiment_dir.mkdir(parents=True)
     log_dir = args.blob_root / "logs" / args.experiment_name
     log_dir.mkdir(parents=True, exist_ok=True)
+    repo_root = Path(__file__).resolve().parents[2]
     commands_text = ""
+    all_job_ids: list[str] = []
 
     priority_groups = _priority_groups(args.runs, selected_specs)
     previous_priority_job_ids: list[str] = []
@@ -223,9 +255,7 @@ def main() -> None:
             )
 
             dependency_job_ids = (
-                None
-                if args.ignore_priorities
-                else previous_priority_job_ids or None
+                None if args.ignore_priorities else previous_priority_job_ids or None
             )
             command = [
                 "sbatch",
@@ -233,14 +263,16 @@ def main() -> None:
                     resource_spec,
                     job_name=f"{args.experiment_name}_{run_name}",
                     log_dir=log_dir,
+                    repo_root=repo_root,
+                    blob_root=args.blob_root,
+                    mail_user=args.mail_user,
                     dependency_job_ids=dependency_job_ids,
                 ),
                 str(args.sbatch_script),
                 str(config_path),
                 args.experiment_name,
-                resource_spec.venv,
             ]
-            command_text = " ".join(command)
+            command_text = shlex.join(command)
             commands_text += f"{command_text}\n"
             if args.dry_run:
                 print(command_text)
@@ -250,8 +282,39 @@ def main() -> None:
                 )
                 job_id = _job_id_from_submission(result)
                 current_priority_job_ids.append(job_id)
+                all_job_ids.append(job_id)
                 print(f"submitted {run_name} ({job_id}): {config_path}")
         previous_priority_job_ids = current_priority_job_ids
+
+    if args.mail_user:
+        notify_command = [
+            "sbatch",
+            "--parsable",
+            "--job-name",
+            f"notify_{args.experiment_name}",
+            "--output",
+            "/dev/null",
+            "--partition",
+            args.notify_partition,
+            "--mail-type",
+            "END,FAIL",
+            "--mail-user",
+            args.mail_user,
+            "--dependency",
+            f"afterany:{':'.join(all_job_ids) if all_job_ids else '<job ids>'}",
+            "--wrap",
+            "echo Jobs finished",
+        ]
+        commands_text += f"{shlex.join(notify_command)}\n"
+        if args.dry_run:
+            print(shlex.join(notify_command))
+        else:
+            notify_result = subprocess.run(
+                notify_command, check=True, capture_output=True, text=True
+            )
+            print(
+                f"submitted notification job ({_job_id_from_submission(notify_result)})"
+            )
 
     if not args.dry_run:
         (log_dir / "commands.txt").write_text(commands_text, encoding="utf-8")
