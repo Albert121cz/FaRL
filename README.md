@@ -71,11 +71,8 @@ print("Label probs:", probs)
 ## Setup Downstream Training
 
 We run all downstream trainings on 8 NVIDIA GPUs (32G). Our code supports other GPU configurations, but we do not guarantee the resulting performances on them.
-Before setting up, install these packages:
-* [PyTorch](https://pytorch.org/get-started/previous-versions/) 1.7.0
-* [MMCV-Full](https://github.com/open-mmlab/mmcv) 1.3.14
 
-Then, install the rest dependencies with `pip install -r ./requirement.txt`.
+Before setting up, prepare the environment with ([uv](https://docs.astral.sh/uv/getting-started/installation/) required): `uv sync`
 
 Please refer to [./DS_DATA.md](./DS_DATA.md) to prepare the training and testing data for downstream tasks.
 

@@ -12,24 +12,20 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "torch==2.13.0",
     "torchvision==0.28.0",
-    "mmcv-full==1.7.2",
     "timm==0.4.12",
     "py-blueprint==0.0.1.post3",
-    "mmsegmentation==0.30.0",
-    "ftfy==6.0.1",
-    "einops==0.3.2",
-    "pyyaml==6.0.3",
 ]
+
+[project.optional-dependencies]
+tasks = ["mmcv-full==1.7.2", "mmsegmentation==0.30.0", "pyyaml==6.0.3"]
+
+[dependency-groups]
+dev = ["farl[tasks]"]
 
 [project.scripts]
 generate-launch-yaml = "farl.scripts.generate_launch_yaml:main"
 launch-farl-experiments = "farl.scripts.launch_farl_experiments:main"
 
 [tool.uv]
-extra-build-dependencies = { mmcv-full = [
-    "setuptools<81",
-    "torch==2.13.0",
-], ftfy = [
-    "setuptools<81",
-] }
+extra-build-dependencies = { mmcv-full = ["setuptools<81", "torch==2.13.0"] }
 extra-build-variables = { mmcv-full = { FORCE_CUDA = "1", TORCH_CUDA_ARCH_LIST = "7.0;8.0;9.0" } }
