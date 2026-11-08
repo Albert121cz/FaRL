@@ -48,13 +48,19 @@ def _parse_args(run_names: list[str], resource_config: Path) -> argparse.Namespa
         help="partition for the final notification job (default: %(default)s)",
     )
     parser.add_argument(
-        "--configs-dir", type=Path, default=Path(__file__).parent.parent / "configs"
+        "--configs-dir", type=Path, default=Path(__file__).parents[1] / "configs"
     )
     parser.add_argument(
         "--blob-root",
         type=Path,
-        default=Path("./blob"),
+        default=Path(__file__).parents[2] / "blob",
         help="blob directory containing outputs, states, and logs",
+    )
+    parser.add_argument(
+        "--temporary-blob-path",
+        type=Path,
+        default=None,
+        help="optional compute-node-local blob directory",
     )
     parser.add_argument(
         "--resource-config",
@@ -108,6 +114,20 @@ def _validate_args(args: argparse.Namespace) -> bool:
     return True
 
 
+def _resolve_path_args(args: argparse.Namespace) -> None:
+    for argument_name in (
+        "checkpoint_path",
+        "configs_dir",
+        "blob_root",
+        "temporary_blob_path",
+        "resource_config",
+        "sbatch_script",
+    ):
+        path = getattr(args, argument_name)
+        if path is not None:
+            setattr(args, argument_name, Path(path).resolve())
+
+
 def _load_resource_specs(path: Path) -> dict[str, ResourceSpec]:
     with path.open(encoding="utf-8") as resource_file:
         raw_config = yaml.safe_load(resource_file) or {}
@@ -154,10 +174,19 @@ def _sbatch_options(
     log_dir: Path,
     repo_root: Path,
     blob_root: Path,
+    temporary_blob_path: Path | None,
     mail_user: str | None,
     dependency_job_ids: list[str] | None = None,
 ) -> list[str]:
     log_path = log_dir / f"{job_name}.log"
+    export_values = [
+        "ALL",
+        f"FARL_REPO_ROOT={repo_root}",
+        f"FARL_VENV={resource_spec.venv}",
+        f"FARL_BLOB_ROOT={blob_root}",
+    ]
+    if temporary_blob_path is not None:
+        export_values.append(f"FARL_TEMP_BLOB_ROOT={temporary_blob_path}")
     options = [
         "--parsable",
         "--job-name",
@@ -167,10 +196,7 @@ def _sbatch_options(
         "--error",
         str(log_path),
         "--export",
-        "ALL,"
-        f"FARL_REPO_ROOT={repo_root},"
-        f"FARL_VENV={resource_spec.venv},"
-        f"FARL_BLOB_ROOT={blob_root}",
+        ",".join(export_values),
         "--partition",
         resource_spec.queue,
         "--time",
@@ -214,9 +240,10 @@ def main() -> None:
     resource_config_parser.add_argument("--resource-config", type=Path)
     resource_config_args, _ = resource_config_parser.parse_known_args()
     if resource_config_args.resource_config is not None:
-        resource_config_path = resource_config_args.resource_config
+        resource_config_path = resource_config_args.resource_config.resolve()
     resource_specs = _load_resource_specs(resource_config_path)
     args = _parse_args(list(resource_specs), resource_config_path)
+    _resolve_path_args(args)
     if not _validate_args(args):
         return
     selected_specs = {}
@@ -265,6 +292,7 @@ def main() -> None:
                     log_dir=log_dir,
                     repo_root=repo_root,
                     blob_root=args.blob_root,
+                    temporary_blob_path=args.temporary_blob_path,
                     mail_user=args.mail_user,
                     dependency_job_ids=dependency_job_ids,
                 ),
